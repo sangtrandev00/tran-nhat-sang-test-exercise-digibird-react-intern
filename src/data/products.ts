@@ -1,4 +1,4 @@
- const data = [
+const data = [
     {
     id: 1,
     address: '31 ward , Pinlon Road , North Dagon',
