@@ -1,43 +1,42 @@
-import React, { useEffect, useState } from 'react'
-import { IAddress, ICity, IDistrict } from '../../../types/Address'
-import { FieldErrors, SubmitHandler, useForm } from 'react-hook-form'
+import React, { useEffect, useState } from 'react';
+import { IAddress, ICity, IDistrict } from '../../../types/Address';
+import { SubmitHandler, useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useRecoilValue, useSetRecoilState } from 'recoil';
-import { currentSelectedProvinceId, getDistrictListAsync } from '../../../store/address_state';
+import { useRecoilRefresher_UNSTABLE, useSetRecoilState } from 'recoil';
+import { currentSelectedProvinceId, getAddressListAsync } from '../../../store/address_state';
 import SkeletonAddress from '../SkeletonAddress';
+import { toast } from 'react-toastify';
+import { BEARER_TOKEN } from '../../../constant/token';
 
 const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICity[], districtList: IDistrict[], currentAddress: IAddress}) => {
   const navigate = useNavigate();
   const location = useLocation();
   const path = location.pathname;
   const currentCodeCity = cityList.find((city) => city.name.includes(currentAddress?.city))?.code;
-  console.log("current address: ", currentAddress);
-  console.log("district list: ", districtList);
-  // Manage two-way binding form data for every input using state
-  const [formData, setFormData] = useState<Omit<IAddress, "xid">>({
-    ...currentAddress,
-    city: currentAddress.xid ? (currentCodeCity?.toString() || "") : ""
-  })
-  // Using react-hook-form to handle form
-  const { register, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm<Omit<IAddress, "xid">>();
 
-  const { onChange, onBlur, name, ref } = register('city'); 
+  // Using react-hook-form to handle form
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<Omit<IAddress, "xid">>();
+
   // Set current city (province id) for global state
   const setSelectedProvinceId = useSetRecoilState(currentSelectedProvinceId);
+  const [cityName, setCityName] = useState(currentAddress.city || "");
+  const [districtName, setDistrictName] = useState(currentAddress.state || "");
+  const [mainDistrictList, setMainDistrictList] = useState<IDistrict[]>(districtList);
   const [currentDistrict, setCurrentDistrict] = useState<IDistrict>();
-
+  const refresh = useRecoilRefresher_UNSTABLE(getAddressListAsync);
   useEffect(() => {
     if(currentAddress.xid) {
       // console.log("current city: ", currentAddress);
       fetch(`https://provinces.open-api.vn/api/d`).then((res) => res.json()).then((districtList: IDistrict[]) => {
         
         const currentDistrict = districtList.find((district) => district.name === currentAddress.state);
+
+      const districtListByProvinceId = districtList.filter((district) => district.province_code === currentCodeCity);
+      setMainDistrictList(districtListByProvinceId);
         setCurrentDistrict(currentDistrict as IDistrict);
-      
-        // console.log("data district: ", data);
       })
     }
-  }, [currentAddress])
+  }, [currentAddress, currentCodeCity])
  
   // set is loading state when request to server
   const [isLoading, setIsLoading] = useState(false);
@@ -45,28 +44,33 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
   // Handle change provinces
   const handleChangeCities = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedProvinceId =e.target.value;
-    console.log("change city event: ", selectedProvinceId);
-    // setFormData((prev) => ({
-    //   ...prev,
-    //   city: selectedProvinceId
-    // }))
-    // setValue("city", selectedProvinceId);
+    // setValue("city", e.target.innerText);
+    console.log("e.target.innerText: ", e.target.selectedOptions[0].innerText);
+    setCityName(e.target.selectedOptions[0].innerText);
     setSelectedProvinceId(selectedProvinceId);
   }
 
+  const handleChangeState = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setDistrictName(e.target.selectedOptions[0].innerText);
+  }
 
+  // Submit form handler
   const onSubmit: SubmitHandler<Omit<IAddress, "xid">> = (data) => {
-    console.log(data);
     const formData = {
       ...data,
       zipcode: 1,
-      country: "VN"
+      country: "VN",
+      city: cityName,
+      state: districtName,
     };
-    // Send post request to backend API
+
+    // Send POST/PUT request to backend API
     const requestData = async () => {
       setIsLoading(true);
       try {
         let res;
+
+        // PUT Request when edit form
         if(currentAddress.xid) {
           res = await fetch(
             `https://test-pos.digibird.io/api/v1/front/self/address/${currentAddress.xid}`, {
@@ -74,26 +78,32 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
               body: JSON.stringify(formData),
               headers: {
                 'Content-Type': 'application/json',
-                authorization: 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL3Rlc3QtcG9zLmRpZ2liaXJkLmlvL2FwaS92MS9mcm9udC9zaWduLXVwLXphbG8iLCJpYXQiOjE2OTc1MDQyMzgsImV4cCI6MTY5NzUyNjEzOCwibmJmIjoxNjk3NTA0MjM4LCJqdGkiOiJXV0xaQXhoalhFOGdsSHNkIiwic3ViIjoiMjI4MiIsInBydiI6IjFkMGEwMjBhY2Y1YzRiNmM0OTc5ODlkZjFhYmYwZmJkNGU4YzhkNjMifQ.0A7GKL7XXadi_Y8ErEPiAcwLsLXlv-LYNlH2SIBj2QM'
+                authorization: `Bearer ${BEARER_TOKEN}`
               }
             }
           );
         }else{
+           // POST Request when add form
           res = await fetch(
             "https://test-pos.digibird.io/api/v1/front/self/address", {
               method: "POST",
               body: JSON.stringify(formData),
               headers: {
                 'Content-Type': 'application/json',
-                authorization: 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL3Rlc3QtcG9zLmRpZ2liaXJkLmlvL2FwaS92MS9mcm9udC9zaWduLXVwLXphbG8iLCJpYXQiOjE2OTc1MDQyMzgsImV4cCI6MTY5NzUyNjEzOCwibmJmIjoxNjk3NTA0MjM4LCJqdGkiOiJXV0xaQXhoalhFOGdsSHNkIiwic3ViIjoiMjI4MiIsInBydiI6IjFkMGEwMjBhY2Y1YzRiNmM0OTc5ODlkZjFhYmYwZmJkNGU4YzhkNjMifQ.0A7GKL7XXadi_Y8ErEPiAcwLsLXlv-LYNlH2SIBj2QM'
+                authorization: `Bearer ${BEARER_TOKEN}`
               }
             }
           );
         }
-          console.log(res);
+
+        if (!res.ok) {
+          // If the response status is not OK (e.g., 404 Not Found), throw an error.
+          throw new Error(`Network response was not ok, status: ${res.status}`);
+        }
+
           const result = await res.json();
-          console.log("result: ", result);
-          // Reset form after submit request
+        // Reset when submit post request successfully!
+        if(!currentAddress.xid) {
           reset({
             name: "",
             email: "",
@@ -105,14 +115,18 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
             country: "",
             zipcode: 0
           });
-          window.alert(result.message);
+        }
+        // Reset list of API when update/or add new address
+        refresh();
+          
+        // Show toast successfully!
+        toast.success(result.message);
 
+      } catch (error : any) {
 
-      } catch (error) {
-        console.log("error: ", error);
+        toast.warning(error.message);
         setIsLoading(false);
       } finally {
-        console.log("finally!");
         setIsLoading(false);
       }
 
@@ -120,22 +134,13 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
       requestData();
   };
 
-    // const currentCodeState = districtList.find((district) => district.name.includes(currentAddress?.city))?.code;
-    console.log("city list: ", cityList);
-    console.log("currentCodeCity: ", currentCodeCity);
-    console.log("currentCodeCity: ", currentCodeCity);
-    console.log("errors: ", errors);
-
-
-  const handleOnChangeCities = (e: any) => {
-    console.log("handle on change cities: ", e);
-  }
-
-    // Load Skeleton when request is loading from server
+  // Load Skeleton when request is loading from server
   if(isLoading) {
     return <SkeletonAddress/>
   }
 
+  console.log("mainDistrictList: ", mainDistrictList);
+  console.log(errors);
   return (
     
     <div className="add-address border-2 border-gray-300">
@@ -156,9 +161,6 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
                 className={`add-address__form-input block border-2 border-gray-300 p-1 w-full mt-2`} 
                 type="text" 
                 placeholder="Nguyễn Văn Ánh"
-                // onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
-                // onChange={(event) => setValue("name", event.target.value)}
-                
                 />
 
               {errors.name?.type === 'required' && <p className="mt-2 text-sm text-red-600" role="alert">Trường Họ và Tên không được để trống</p>}
@@ -171,15 +173,14 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
                 <i className="fa-solid fa-phone text-gray-400"></i><span className="font-medium ml-1">Số điện thoại</span>
                 </label>
                 <input 
-                {...register("phone", {required: true})} 
+                {...register("phone", {required: true, pattern: /^(0\d{9}|84\d{8,9})$/})} 
                 defaultValue={currentAddress?.phone || ""} 
                 className="add-address__form-input block border-2 border-gray-300 p-1 w-full mt-2" 
                 type="text" 
                 placeholder="0 xxx xxx xxx"
-                // onChange={(event) => setFormData((prev) => ({ ...prev, phone: event.target.value }))}
-                
                 />
               {errors.phone?.type === 'required' && <p className="mt-2 text-sm text-red-600" role="alert">Trường điện thoại không được để trống</p>}
+              {errors.phone?.type === 'pattern' && <p className="mt-2 text-sm text-red-600" role="alert">Trường điện thoại không đúng định dạng</p>}
 
               </div>
           
@@ -190,7 +191,7 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
                 <i className="fa-regular fa-envelope text-gray-400"></i> <span className="font-medium ml-1">Email</span>
                 </label>
                 <input 
-                {...register("email", {required: true})} 
+                {...register("email", {required: true, pattern: /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/})} 
                 defaultValue={currentAddress?.email || ""} 
                 className="add-address__form-input block border-2 border-gray-300 p-1 w-full mt-2" 
                 type="text" 
@@ -198,6 +199,7 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
                 // onChange={(event) => setFormData((prev) => ({ ...prev, email: event.target.value }))}
                 />
               {errors.email?.type === 'required' && <p className="mt-2 text-sm text-red-600" role="alert">Trường Email không được để trống</p>}
+              {errors.email?.type === 'pattern' && <p className="mt-2 text-sm text-red-600" role="alert">Trường Email không đúng định dạng</p>}
 
               </div>
 
@@ -205,11 +207,11 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
 
               <div className="add-address__form-group mb-4">
                 <label htmlFor="" className="add-address__form-label">
-                <i className="fa-solid fa-location-dot text-gray-400"></i> <span className="font-medium ml-1">Tỉnh, thành phố</span>
+                  <i className="fa-solid fa-location-dot text-gray-400"></i> <span className="font-medium ml-1">Tỉnh, thành phố</span>
                 </label>
                 <select 
                 {...register("city", {required: true,  onChange: handleChangeCities})} 
-                defaultValue={currentCodeCity} 
+                defaultValue={currentAddress.xid ? currentCodeCity : ""} 
                 // onChange={handleChangeCities} 
                 className="add-address__form-input block border-2 border-gray-300 p-1 w-full mt-2" 
                 placeholder="example@example"
@@ -228,10 +230,10 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
 
               <div className="add-address__form-group mb-4">
                 <label htmlFor="" className="add-address__form-label">
-                <i className="fa-solid fa-location-dot text-gray-400"></i> <span className="font-medium ml-1">Quận, huyện</span>
+                  <i className="fa-solid fa-location-dot text-gray-400"></i> <span className="font-medium ml-1">Quận, huyện</span>
                 </label>
                 <select 
-                {...register("state", {required: true})} 
+                {...register("state", {required: true, onChange: handleChangeState})} 
                 className="add-address__form-input block border-2 border-gray-300 p-1 w-full mt-2"  
                 placeholder="example@example"
                 // onChange={(event) => setFormData((prev) => ({ ...prev, state: event.target.value }))}

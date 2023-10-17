@@ -21,10 +21,10 @@ function AddAddress() {
     return <div>Error: {cityListLoadable.contents}</div>;
   }
 
-  // Convert to array list from globale state
+  // Convert to array list from global remote state
   const cityList = cityListLoadable.contents;
 
-  // District list
+  // Convert to District list from global remote state of district public API
   const districtList = districtListLoadable.contents.districts as IDistrict[];
   console.log("district list from add address", districtList);
 
