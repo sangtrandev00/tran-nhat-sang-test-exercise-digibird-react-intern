@@ -5,7 +5,7 @@ import { IAddress } from '../../../types/Address';
 const AddressCard = ({address}: {address: IAddress}) => {
 
     const navigate = useNavigate();
-
+  // Combine address with address + state + city + country
     const detailAddress = `${address.address}, ${address.state}, ${address.city}, ${address.country}`
 
   return (

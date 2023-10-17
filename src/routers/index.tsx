@@ -1,10 +1,8 @@
-import React from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import Home from '../pages/home';
 import Address from '../pages/Address';
 import AddAddress from '../pages/AddAddress';
 import EditAddress from '../pages/EditAddress';
-
 
 const Routers = () => {
   return (

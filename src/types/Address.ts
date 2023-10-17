@@ -8,6 +8,7 @@ export interface IAddress {
     state: string;
     country: string;
     xid: string;
+    zipcode: number;
 }
 
 export interface ICity {
