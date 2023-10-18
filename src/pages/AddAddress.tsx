@@ -26,8 +26,6 @@ function AddAddress() {
 
   // Convert to District list from global remote state of district public API
   const districtList = districtListLoadable.contents.districts as IDistrict[];
-  console.log("district list from add address", districtList);
-
 
   return (
     <FormAddress cityList={cityList} districtList={districtList} currentAddress={defaultAddressValue}/>
