@@ -28,6 +28,7 @@ Dear Didibird company. Here is my intern react test.
 ![Home Interface](./src/assets/images/Screenshot_2.png)
 
 + Click Button Login
+
 ![Home Interface](./src/assets/images/Screenshot_8.png)
 
 ### Step 5: Check the exercise
@@ -35,10 +36,12 @@ Dear Didibird company. Here is my intern react test.
 ![Address Page](./src/assets/images/Screenshot_3.png)
   
 + Add Page
+  
 ![Add Page](./src/assets/images/Screenshot_4.png)
 
-+ Edit Page 
-![Add Page](./src/assets/images/Screenshot_5.png)
++ Edit Page
+ 
+![Edit Page](./src/assets/images/Screenshot_5.png)
   
 
 ## Technology in use:
