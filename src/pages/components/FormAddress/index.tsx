@@ -14,9 +14,6 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
   const path = location.pathname;
   const currentCodeCity = cityList.find((city) => city.name.includes(currentAddress?.city))?.code;
 
-  // Using react-hook-form to handle form
-  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<Omit<IAddress, "xid">>();
-
   // Set current city (province id) for global state
   const setSelectedProvinceId = useSetRecoilState(currentSelectedProvinceId);
   const [cityName, setCityName] = useState(currentAddress.city || "");
@@ -24,12 +21,15 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
   const [mainDistrictList, setMainDistrictList] = useState<IDistrict[]>(districtList);
   const [currentDistrict, setCurrentDistrict] = useState<IDistrict>();
   const refresh = useRecoilRefresher_UNSTABLE(getAddressListAsync);
+
+   // Using react-hook-form to handle form
+   const { register, handleSubmit, formState: { errors }, reset } = useForm<Omit<IAddress, "xid">>();
+
   useEffect(() => {
     if(currentAddress.xid) {
-      // console.log("current city: ", currentAddress);
       fetch(`https://provinces.open-api.vn/api/d`).then((res) => res.json()).then((districtList: IDistrict[]) => {
         
-        const currentDistrict = districtList.find((district) => district.name === currentAddress.state);
+      const currentDistrict = districtList.find((district) => district.name === currentAddress.state);
 
       const districtListByProvinceId = districtList.filter((district) => district.province_code === currentCodeCity);
       setMainDistrictList(districtListByProvinceId);
@@ -38,18 +38,22 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
     }
   }, [currentAddress, currentCodeCity])
  
+  // Change current District List very time district change
+  useEffect(() => {
+    setMainDistrictList(districtList);
+  }, [districtList])
+
   // set is loading state when request to server
   const [isLoading, setIsLoading] = useState(false);
 
-  // Handle change provinces
+  // Handle change province(city), set current city name
   const handleChangeCities = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedProvinceId =e.target.value;
-    // setValue("city", e.target.innerText);
-    console.log("e.target.innerText: ", e.target.selectedOptions[0].innerText);
     setCityName(e.target.selectedOptions[0].innerText);
     setSelectedProvinceId(selectedProvinceId);
   }
 
+  // Set Current District name state
   const handleChangeState = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setDistrictName(e.target.selectedOptions[0].innerText);
   }
@@ -139,8 +143,6 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
     return <SkeletonAddress/>
   }
 
-  console.log("mainDistrictList: ", mainDistrictList);
-  console.log(errors);
   return (
     
     <div className="add-address border-2 border-gray-300">
@@ -196,7 +198,6 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
                 className="add-address__form-input block border-2 border-gray-300 p-1 w-full mt-2" 
                 type="text" 
                 placeholder="example@example"
-                // onChange={(event) => setFormData((prev) => ({ ...prev, email: event.target.value }))}
                 />
               {errors.email?.type === 'required' && <p className="mt-2 text-sm text-red-600" role="alert">Trường Email không được để trống</p>}
               {errors.email?.type === 'pattern' && <p className="mt-2 text-sm text-red-600" role="alert">Trường Email không đúng định dạng</p>}
@@ -212,7 +213,6 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
                 <select 
                 {...register("city", {required: true,  onChange: handleChangeCities})} 
                 defaultValue={currentAddress.xid ? currentCodeCity : ""} 
-                // onChange={handleChangeCities} 
                 className="add-address__form-input block border-2 border-gray-300 p-1 w-full mt-2" 
                 placeholder="example@example"
                 
@@ -233,16 +233,15 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
                   <i className="fa-solid fa-location-dot text-gray-400"></i> <span className="font-medium ml-1">Quận, huyện</span>
                 </label>
                 <select 
-                {...register("state", {required: true, onChange: handleChangeState})} 
+                {...register("state", { onChange: handleChangeState})} 
                 className="add-address__form-input block border-2 border-gray-300 p-1 w-full mt-2"  
                 placeholder="example@example"
-                // onChange={(event) => setFormData((prev) => ({ ...prev, state: event.target.value }))}
-                
+                defaultValue={currentDistrict?.code|| "" }
                 >
-               {currentAddress.xid && (<option selected value={currentDistrict?.code || ""}>{currentDistrict?.name || "Chọn quận/ huyện"}</option>)} 
-                {!currentAddress.xid && (<option value="">Chọn quận/ huyện</option>) }
-                    {(districtList || [] ).map((districtItem) => {
-                      return <option key={districtItem.code} value={districtItem.code}>{districtItem.name}</option>
+               {/* {currentAddress.xid && (<option selected value={currentDistrict?.code || ""}>{currentDistrict?.name || "Chọn quận/ huyện"}</option>)}  */}
+                <option value="">Chọn quận/ huyện</option>
+                    {(mainDistrictList || [] ).map((districtItem) => {
+                      return <option selected={currentDistrict?.code === districtItem.code}  key={districtItem.code} value={districtItem.code}>{districtItem.name}</option>
                     })}
                 </select>
               {errors.state?.type === 'required' && <p className="mt-2 text-sm text-red-600" role="alert">Trường Quận, huyện không được để trống</p>}
@@ -261,7 +260,6 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
                 className="add-address__form-input block border-2 border-gray-300 p-1 w-full mt-2" 
                 type="text" 
                 placeholder="23 đường số 8, phường Linh Trung,..."
-                // onChange={(event) => setFormData((prev) => ({ ...prev, address: event.target.value }))}
                 />
               {errors.address?.type === 'required' && <p className="mt-2 text-sm text-red-600" role="alert">Trường Địa chỉ không được để trống</p>}
                 
@@ -279,7 +277,6 @@ const FormAddress = ({cityList, districtList, currentAddress }: { cityList: ICit
                 className="add-address__form-input block border-2 border-gray-300 p-1 w-full mt-2" 
                 type="text" 
                 placeholder="Địa chỉ giao hàng: abcdc"
-                // onChange={(event) => setFormData((prev) => ({ ...prev, shipping_address: event.target.value }))}
                 />
               {errors.shipping_address?.type === 'required' && <p className="mt-2 text-sm text-red-600" role="alert">Trường địa chỉ giao hàng không được để trống</p>}
               </div>

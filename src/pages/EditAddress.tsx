@@ -4,7 +4,6 @@ import SkeletonAddress from './components/SkeletonAddress';
 import { IAddress, IDistrict } from '../types/Address';
 import FormAddress from './components/FormAddress';
 import { useParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 
 function EditAddress() {
   
@@ -30,12 +29,9 @@ function EditAddress() {
   const addressList = addressListAsyncLoadable.contents.data;
   const cityList = cityListLoadable.contents;
   const districtList = districtListLoadable.contents.districts as IDistrict[];
-
   const currentAddress = addressList.find((city) => city.xid === addressId);
 
-  console.log("current address: ", currentAddress);
-  console.log("district: ", districtList);
-
+  
   return (
     <FormAddress  cityList={cityList} districtList={districtList} currentAddress={currentAddress as IAddress}/>
   )
